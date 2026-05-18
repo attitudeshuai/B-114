@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 interface Feature {
@@ -8,9 +8,65 @@ interface Feature {
   description: string
 }
 
+interface Todo {
+  id: number
+  text: string
+  completed: boolean
+  createdAt: number
+}
+
 const router = useRouter()
 const loading = ref(true)
 const features = ref<Feature[]>([])
+
+const TODOS_KEY = 'vue3-starter-todos'
+const newTodoText = ref('')
+const todos = ref<Todo[]>([])
+
+const activeTodos = computed(() => todos.value.filter(t => !t.completed))
+const completedTodos = computed(() => todos.value.filter(t => t.completed))
+
+const loadTodos = () => {
+  try {
+    const raw = localStorage.getItem(TODOS_KEY)
+    if (raw) {
+      todos.value = JSON.parse(raw)
+    }
+  } catch {
+    todos.value = []
+  }
+}
+
+const saveTodos = () => {
+  localStorage.setItem(TODOS_KEY, JSON.stringify(todos.value))
+}
+
+watch(todos, saveTodos, { deep: true })
+
+const addTodo = () => {
+  const text = newTodoText.value.trim()
+  if (!text) return
+  todos.value.unshift({
+    id: Date.now(),
+    text,
+    completed: false,
+    createdAt: Date.now()
+  })
+  newTodoText.value = ''
+}
+
+const toggleTodo = (id: number) => {
+  const todo = todos.value.find(t => t.id === id)
+  if (todo) todo.completed = !todo.completed
+}
+
+const deleteTodo = (id: number) => {
+  todos.value = todos.value.filter(t => t.id !== id)
+}
+
+const clearCompleted = () => {
+  todos.value = todos.value.filter(t => !t.completed)
+}
 
 const scrollToCTA = () => {
   document.querySelector('.cta')?.scrollIntoView({ behavior: 'smooth' })
@@ -20,8 +76,8 @@ const goToAbout = () => {
   router.push('/about')
 }
 
-// 模拟数据加载
 onMounted(() => {
+  loadTodos()
   setTimeout(() => {
     features.value = [
       { icon: '⚡', title: 'Vite 构建', description: '极速的热更新，闪电般的冷启动' },
@@ -80,6 +136,78 @@ onMounted(() => {
             <span class="feature-icon">{{ feature.icon }}</span>
             <h3 class="feature-title">{{ feature.title }}</h3>
             <p class="feature-desc">{{ feature.description }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Todo Section -->
+    <section class="todo-section">
+      <div class="container">
+        <h2 class="section-title">📝 待办清单</h2>
+
+        <div class="todo-card card">
+          <form class="todo-input-row" @submit.prevent="addTodo">
+            <input
+              v-model="newTodoText"
+              type="text"
+              class="todo-input"
+              placeholder="添加一个新任务..."
+              maxlength="200"
+            />
+            <button type="submit" class="btn btn-primary todo-add-btn" :disabled="!newTodoText.trim()">
+              添加
+            </button>
+          </form>
+
+          <div class="todo-list" v-if="activeTodos.length > 0">
+            <div
+              v-for="todo in activeTodos"
+              :key="todo.id"
+              class="todo-item"
+            >
+              <input
+                type="checkbox"
+                class="todo-checkbox"
+                :checked="todo.completed"
+                @change="toggleTodo(todo.id)"
+              />
+              <span class="todo-text">{{ todo.text }}</span>
+              <button class="todo-delete" @click="deleteTodo(todo.id)" title="删除">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="todo-empty">
+            <span>暂无待办任务，去上面添加一个吧 ✨</span>
+          </div>
+        </div>
+
+        <div v-if="completedTodos.length > 0" class="todo-card card todo-completed-card">
+          <div class="todo-completed-header">
+            <h3 class="todo-completed-title">✅ 已完成 ({{ completedTodos.length }})</h3>
+            <button class="todo-clear-btn" @click="clearCompleted">
+              清空已完成
+            </button>
+          </div>
+          <div class="todo-list">
+            <div
+              v-for="todo in completedTodos"
+              :key="todo.id"
+              class="todo-item todo-item-done"
+            >
+              <input
+                type="checkbox"
+                class="todo-checkbox"
+                :checked="todo.completed"
+                @change="toggleTodo(todo.id)"
+              />
+              <span class="todo-text todo-text-done">{{ todo.text }}</span>
+              <button class="todo-delete" @click="deleteTodo(todo.id)" title="删除">
+                ✕
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -242,6 +370,139 @@ onMounted(() => {
   margin-top: var(--spacing-md);
 }
 
+/* Todo */
+.todo-section {
+  padding: var(--spacing-xl) 0;
+}
+
+.todo-card {
+  margin: 0 auto;
+  max-width: 640px;
+}
+
+.todo-completed-card {
+  margin-top: var(--spacing-lg);
+  opacity: 0.85;
+}
+
+.todo-input-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.todo-input {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.todo-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.todo-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.todo-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.todo-item-done {
+  background: #ecfdf5;
+}
+
+.todo-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: var(--font-size-md);
+  word-break: break-word;
+}
+
+.todo-text-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.todo-delete {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.todo-delete:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.todo-empty {
+  text-align: center;
+  padding: var(--spacing-lg);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.todo-completed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.todo-completed-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.todo-clear-btn {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.todo-clear-btn:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
 @media (max-width: 768px) {
   .hero {
     padding: var(--spacing-xl) 0;
@@ -254,6 +515,14 @@ onMounted(() => {
   }
   
   .hero-actions .btn {
+    width: 100%;
+  }
+
+  .todo-input-row {
+    flex-direction: column;
+  }
+
+  .todo-add-btn {
     width: 100%;
   }
 }
