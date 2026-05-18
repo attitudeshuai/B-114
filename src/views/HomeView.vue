@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTodoStore } from '@/stores'
 
 interface Feature {
   icon: string
@@ -11,6 +12,22 @@ interface Feature {
 const router = useRouter()
 const loading = ref(true)
 const features = ref<Feature[]>([])
+
+const todoStore = useTodoStore()
+const newTodoText = ref('')
+
+const handleAddTodo = () => {
+  if (newTodoText.value.trim()) {
+    todoStore.addTodo(newTodoText.value)
+    newTodoText.value = ''
+  }
+}
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') {
+    handleAddTodo()
+  }
+}
 
 const scrollToCTA = () => {
   document.querySelector('.cta')?.scrollIntoView({ behavior: 'smooth' })
@@ -80,6 +97,106 @@ onMounted(() => {
             <span class="feature-icon">{{ feature.icon }}</span>
             <h3 class="feature-title">{{ feature.title }}</h3>
             <p class="feature-desc">{{ feature.description }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Todo Section -->
+    <section class="todo">
+      <div class="container">
+        <h2 class="section-title">📝 待办清单</h2>
+        <div class="todo-container card">
+          <div class="todo-input-wrap">
+            <input
+              v-model="newTodoText"
+              type="text"
+              class="todo-input"
+              placeholder="输入新的待办事项，按回车添加..."
+              @keydown="handleKeydown"
+            />
+            <button class="btn btn-primary todo-add-btn" @click="handleAddTodo">
+              添加
+            </button>
+          </div>
+
+          <div class="todo-lists">
+            <div class="todo-list-section">
+              <h3 class="todo-list-title">
+                待完成
+                <span class="todo-count">{{ todoStore.activeTodos.length }}</span>
+              </h3>
+              <div v-if="todoStore.activeTodos.length === 0" class="todo-empty">
+                暂无待办事项，添加一个吧～
+              </div>
+              <ul v-else class="todo-list">
+                <li
+                  v-for="todo in todoStore.activeTodos"
+                  :key="todo.id"
+                  class="todo-item"
+                >
+                  <label class="todo-checkbox">
+                    <input
+                      type="checkbox"
+                      :checked="todo.completed"
+                      @change="todoStore.toggleTodo(todo.id)"
+                    />
+                    <span class="checkmark"></span>
+                  </label>
+                  <span class="todo-text">{{ todo.text }}</span>
+                  <button
+                    class="todo-delete-btn"
+                    @click="todoStore.deleteTodo(todo.id)"
+                    title="删除"
+                  >
+                    ×
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div class="todo-list-section">
+              <div class="todo-list-header">
+                <h3 class="todo-list-title">
+                  已完成
+                  <span class="todo-count">{{ todoStore.completedTodos.length }}</span>
+                </h3>
+                <button
+                  v-if="todoStore.completedTodos.length > 0"
+                  class="todo-clear-btn"
+                  @click="todoStore.clearCompleted"
+                >
+                  清空已完成
+                </button>
+              </div>
+              <div v-if="todoStore.completedTodos.length === 0" class="todo-empty">
+                暂无已完成的任务
+              </div>
+              <ul v-else class="todo-list">
+                <li
+                  v-for="todo in todoStore.completedTodos"
+                  :key="todo.id"
+                  class="todo-item completed"
+                >
+                  <label class="todo-checkbox">
+                    <input
+                      type="checkbox"
+                      :checked="todo.completed"
+                      @change="todoStore.toggleTodo(todo.id)"
+                    />
+                    <span class="checkmark"></span>
+                  </label>
+                  <span class="todo-text">{{ todo.text }}</span>
+                  <button
+                    class="todo-delete-btn"
+                    @click="todoStore.deleteTodo(todo.id)"
+                    title="删除"
+                  >
+                    ×
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -242,6 +359,199 @@ onMounted(() => {
   margin-top: var(--spacing-md);
 }
 
+/* Todo */
+.todo {
+  padding: var(--spacing-xl) 0;
+}
+
+.todo-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-xl);
+}
+
+.todo-input-wrap {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.todo-input {
+  flex: 1;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.todo-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.todo-add-btn {
+  white-space: nowrap;
+}
+
+.todo-lists {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.todo-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.todo-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.todo-list-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.todo-count {
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.todo-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s;
+}
+
+.todo-clear-btn:hover {
+  color: var(--danger-color);
+  background: var(--bg-secondary);
+}
+
+.todo-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+}
+
+.todo-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+}
+
+.todo-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.todo-checkbox {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.todo-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  height: 22px;
+  width: 22px;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-checkbox input:checked ~ .checkmark {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkmark:after {
+  content: '';
+  display: none;
+  width: 6px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.todo-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: var(--font-size-md);
+}
+
+.todo-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s;
+  line-height: 1;
+}
+
+.todo-delete-btn:hover {
+  color: var(--danger-color);
+  background: var(--bg-primary);
+}
+
 @media (max-width: 768px) {
   .hero {
     padding: var(--spacing-xl) 0;
@@ -254,6 +564,18 @@ onMounted(() => {
   }
   
   .hero-actions .btn {
+    width: 100%;
+  }
+
+  .todo-container {
+    padding: var(--spacing-lg);
+  }
+
+  .todo-input-wrap {
+    flex-direction: column;
+  }
+
+  .todo-add-btn {
     width: 100%;
   }
 }
