@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import TodoList from '@/components/TodoList.vue'
 
 interface Feature {
   icon: string
@@ -84,6 +85,9 @@ onMounted(() => {
         </div>
       </div>
     </section>
+
+    <!-- Todo Section -->
+    <TodoList />
 
     <!-- CTA Section -->
     <section class="cta">
